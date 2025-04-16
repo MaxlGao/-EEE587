@@ -204,15 +204,15 @@ def run_experiment(pusher2_active_plan, label=None):
     return result
 
 
-def run_all_experiments():
+def run_all_experiments(start_idx=0):
     all_plans = generate_all_mode_schedules(n_buckets)
     results = []
-    for i, plan in enumerate(all_plans):
+    for i, plan in enumerate(all_plans[start_idx:], start=start_idx):
         label = f"plan_{i:04d}"
         print(f"\n>>> Running experiment {label} with schedule {plan}")
         start_time = time.time()
         result = run_experiment(plan, label)
-        print(f"Done; took {time.time() - start_time:.2d} seconds")
+        print(f"Done; took {time.time() - start_time:.2f} seconds")
         results.append(result)
         np.savez(f"results/{label}.npz", **result)
 
