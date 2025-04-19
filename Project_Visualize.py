@@ -53,7 +53,7 @@ def transform2(x,y,angle):
     new_y = x * sin_angle + y * cos_angle
     return new_x, new_y
 
-def playback(x_trajectory, u_trajectory, x_ref_values, B_WIDTH, B_HEIGHT, dt):
+def playback(x_trajectory, u_trajectory, x_ref_values, B_WIDTH, B_HEIGHT, dt, speed):
     # Pygame animation
     # Initialize pygame
     pygame.init()
@@ -74,7 +74,6 @@ def playback(x_trajectory, u_trajectory, x_ref_values, B_WIDTH, B_HEIGHT, dt):
     clock = pygame.time.Clock()
 
     trajectory_len = len(u_trajectory)
-    speed = 1
 
     running = True
     index = 0
@@ -181,8 +180,7 @@ def playback(x_trajectory, u_trajectory, x_ref_values, B_WIDTH, B_HEIGHT, dt):
         rect_points = rect_points @ rot_matrix + np.array([1000*target_bx, 1000*target_by])
         pygame.draw.polygon(screen, BLACK, rect_points, 2)
 
-        # Move to the next point in the trajectory
-        index += speed
+        index += 1
         if index >= trajectory_len:
             index = 0  # Loop back to the first point
 
@@ -191,7 +189,7 @@ def playback(x_trajectory, u_trajectory, x_ref_values, B_WIDTH, B_HEIGHT, dt):
         # Refresh display
         pygame.display.flip()
         elapsed = time.time() - start_time
-        time.sleep(max(0, dt - elapsed))
+        time.sleep(max(0, dt - elapsed) / speed)
         clock.tick(60)  # Limit to 60 FPS
 
     pygame.quit()
