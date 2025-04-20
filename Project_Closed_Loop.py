@@ -8,11 +8,19 @@ from concurrent.futures import ProcessPoolExecutor
 n_buckets = 8
 bucket_size = T // n_buckets
 
-def generate_all_mode_schedules(n_buckets):
+# Generate reference trajectory (circular path)
+t_ref = np.linspace(0, 2*np.pi, T+1)
+x_ref_values = np.vstack([
+    0.3 + 0.1 * np.cos(t_ref),  # px reference (circle center 0.3,0.3 with radius 0.1)
+    0.3 + 0.1 * np.sin(t_ref),  # py reference
+    np.arctan2(0.1 * np.sin(t_ref), 0.1 * np.cos(t_ref))  # theta reference (tangent to circle)
+])
+
+def generate_all_buckets(n_buckets):
     # Returns list of lists of true/falses. Each corresponds to one schedule
     return list(itertools.product([False, True], repeat=n_buckets))
 
-def make_plan_from_buckets(bucket_schedule, bucket_size, T, phi1=21*np.pi/12, phi2=15*np.pi/12):
+def make_plan_from_buckets(bucket_schedule, bucket_size, T, phi1=15*np.pi/12, phi2=21*np.pi/12):
     """
     Creates a full-length pusher plan compatible with controlclosedloop.
 
@@ -40,7 +48,7 @@ def make_plan_from_buckets(bucket_schedule, bucket_size, T, phi1=21*np.pi/12, ph
 
 def run_experiment(pusher_plan, label=None):
     # Run controller
-    y_traj, u_traj, x_ref, cost_traj = controlclosedloop(pusher_plan)
+    y_traj, u_traj, x_ref, cost_traj = controlclosedloop(pusher_plan, x_ref_values)
     
     pos_error = sum(np.linalg.norm(y[:2] - x_ref[:2, i].reshape(-1,1)) for i, y in enumerate(y_traj)) # distance integral from reference
     ang_error = sum(np.abs(angle_diff(y[2], x_ref[2, i])) for i, y in enumerate(y_traj)) # rotation integral from reference
@@ -77,8 +85,17 @@ def run_experiment(pusher_plan, label=None):
 
     return result
 
+def single_run(args, results_dir="results/experiment_0"):
+    idx, plan = args
+    label = f"plan_{idx:04d}"
+    print(f"\nRunning {label}")
+    start_time = time.time()
+    result = run_experiment(plan, label)
+    print(f"Done with {label}; took {time.time() - start_time:.2f} seconds")
+    np.savez(f"{results_dir}/{label}.npz", **result)
+
 def run_all_experiments_buckets(start_idx=0, parallel=False):
-    all_plans = generate_all_mode_schedules(n_buckets)
+    all_plans = generate_all_buckets(n_buckets)
     jobs = []
     for i, bucket_plan in enumerate(all_plans[start_idx:], start=start_idx):
         plan = make_plan_from_buckets(bucket_plan, bucket_size, T)
@@ -89,15 +106,6 @@ def run_all_experiments_buckets(start_idx=0, parallel=False):
     else:
         for args in jobs:
             single_run(args)
-
-def single_run(args, results_dir="results/experiment_1"):
-    idx, plan = args
-    label = f"plan_{idx:04d}"
-    print(f"\nRunning {label}")
-    start_time = time.time()
-    result = run_experiment(plan, label)
-    print(f"Done with {label}; took {time.time() - start_time:.2f} seconds")
-    np.savez(f"{results_dir}/{label}.npz", **result)
 
 if __name__ == "__main__":
     run_all_experiments_buckets(parallel=True)

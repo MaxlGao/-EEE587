@@ -7,7 +7,7 @@ T = 300 # Total Steps
 N = 30 # Prediction Horizon
 dt = 0.05 # Seconds
 lookahead_skip = 3 # Amount by which to decrease the resolution of MPC prediction. A value of 1 means normal MPC
-# At an N-to-skip ratio of 10:1, with a dt of 0.05, processing keeps up with real time.
+# At an N-to-skip ratio of 10:1, with a dt of 0.05, processing usually keeps up with real time.
 
 # Weights
 Q = np.diag([30, 30, 1]) # Penalizing bx, by, theta
@@ -80,7 +80,7 @@ def cost_function(x, x_ref, u, u_ref):
     u_diff = u_ref - u
     return x_diff.T @ Q @ x_diff + u_diff.T @ R @ u_diff
 
-def controlclosedloop(pusher_plan):
+def controlclosedloop(pusher_plan, x_ref_values):
     # State: [bx, by, theta]  
     x_init = np.array([0.4, 0.3, 0]).reshape(-1, 1)
     nx = len(x_init)
@@ -93,25 +93,6 @@ def controlclosedloop(pusher_plan):
     x_ref = cp.Parameter((nx, N+1))  # Reference trajectory
     x0 = cp.Parameter(nx)  # Initial state
     
-    # Generate reference trajectory (circular path)
-    t_ref = np.linspace(0, 2*np.pi, T+1)
-
-    # Circular Reference
-    x_ref_values = np.vstack([
-        0.3 + 0.1 * np.cos(t_ref),  # px reference (circle center 0.3,0.3 with radius 0.1)
-        0.3 + 0.1 * np.sin(t_ref),  # py reference
-        # np.full(T+1,0), # Zero theta reference
-        np.arctan2(0.1 * np.sin(t_ref), 0.1 * np.cos(t_ref))  # theta reference (tangent to circle)
-    ])
-    
-    # Linear Reference
-    # x_ref_values = np.vstack([
-    #     0.4 + 0.03 * t_ref,  # px reference (Line starting at 0.4, 0.3)
-    #     0.3 + 0.03 * t_ref,  # py reference
-    #     np.full(T+1,0), # Zero theta reference
-    #     # np.arctan2(-0.1 * np.sin(t_ref) 0.1 * np.cos(t_ref)),  # theta reference spinning
-    # ])
-
     u_ref = np.vstack([
         0, 0, 0, 0  # force reference
     ])
@@ -153,8 +134,8 @@ def controlclosedloop(pusher_plan):
 
             plan = pusher_plan[global_time]
             active1 = plan["active1"]
-            phi1 = plan["phi1"]
             active2 = plan["active2"]
+            phi1 = plan["phi1"]
             phi2 = plan["phi2"]
 
             if not active1:
@@ -206,9 +187,5 @@ def controlclosedloop(pusher_plan):
         cost_trajectory.append(cost_function(x_new, x_ref.value[:,:1], u_opt, u_ref).flatten())
         if np.mod(t,1//dt) == 0:
             print(f"Completed Trajectory at t = {t} / {T} ({t*dt:.2f} sec in sim, {time.time() - start_time:.2f} sec real processing time)")
-            # print(f"Horizon Cost: {prob.value:.3f}")
-            # u_opt = u_opt.flatten()
-            # print(f"Pusher 1: {u_opt[0]:.2f} norm, {u_opt[2]: .2f} tang.")
-            # print(f"Pusher 2: {u_opt[1]:.2f} norm, {u_opt[3]: .2f} tang.") 
 
     return y_trajectory, u_trajectory, x_ref_values, cost_trajectory

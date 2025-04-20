@@ -92,20 +92,15 @@ def playback(x_trajectory, u_trajectory, x_ref_values, B_WIDTH, B_HEIGHT, dt, sp
         bx = x_trajectory[index][0]
         by = x_trajectory[index][1]
         angle = x_trajectory[index][2]
-        # print(angle)
         target_bx = x_ref_values[0, index]
         target_by = x_ref_values[1, index]
         target_angle = x_ref_values[2, index]
-        # print(target_angle)
         phi1 = x_trajectory[index][3]
         phi2 = x_trajectory[index][4]
         norm1 = u_trajectory[index][0]
         norm2 = u_trajectory[index][1]
         tang1 = u_trajectory[index][2]
         tang2 = u_trajectory[index][3]
-
-        # print("x trajectory:", x_trajectory[index])
-        # print("u trajectory:", u_trajectory[index])
 
         # Positions of point pushers on the body frame
         base_p1x, base_p1y, nor_dir1, tan_dir1 = rect_edge_point(B_WIDTH, B_HEIGHT, phi1)
@@ -123,18 +118,15 @@ def playback(x_trajectory, u_trajectory, x_ref_values, B_WIDTH, B_HEIGHT, dt, sp
         p2x, p2y = transform2(base_p2x, base_p2y, angle)
         p2x, p2y = (float(p2x + bx), float(p2y + by)) 
 
-        # print("p1 pos:", p1x, p1y)
-        # print("p2 pos:", p2x, p2y)
-
         # Converting pusher forces to base frame
-        norm1 = (float(norm1[0,0] * np.cos(angle) - norm1[0,1] * np.sin(angle)),
-                 float(norm1[0,0] * np.sin(angle) + norm1[0,1] * np.cos(angle)))
-        norm2 = (float(norm2[0,0] * np.cos(angle) - norm2[0,1] * np.sin(angle)),
-                 float(norm2[0,0] * np.sin(angle) + norm2[0,1] * np.cos(angle)))
-        tang1 = (float(tang1[0,0] * np.cos(angle) - tang1[0,1] * np.sin(angle)),
-                 float(tang1[0,0] * np.sin(angle) + tang1[0,1] * np.cos(angle)))
-        tang2 = (float(tang2[0,0] * np.cos(angle) - tang2[0,1] * np.sin(angle)),
-                 float(tang2[0,0] * np.sin(angle) + tang2[0,1] * np.cos(angle)))
+        norm1 = (float(norm1[0] * np.cos(angle) - norm1[1] * np.sin(angle)),
+                 float(norm1[0] * np.sin(angle) + norm1[1] * np.cos(angle)))
+        norm2 = (float(norm2[0] * np.cos(angle) - norm2[1] * np.sin(angle)),
+                 float(norm2[0] * np.sin(angle) + norm2[1] * np.cos(angle)))
+        tang1 = (float(tang1[0] * np.cos(angle) - tang1[1] * np.sin(angle)),
+                 float(tang1[0] * np.sin(angle) + tang1[1] * np.cos(angle)))
+        tang2 = (float(tang2[0] * np.cos(angle) - tang2[1] * np.sin(angle)),
+                 float(tang2[0] * np.sin(angle) + tang2[1] * np.cos(angle)))
         
 
         # Create a rotated rectangle
@@ -168,7 +160,7 @@ def playback(x_trajectory, u_trajectory, x_ref_values, B_WIDTH, B_HEIGHT, dt, sp
         # Draw past trajectory
         if index > 1:
             bx, by = x_trajectory[0][:2]
-            points = [(1000*arr[0][0], 1000*arr[1][0]) for arr in x_trajectory[:index]]
+            points = [(1000*arr[0], 1000*arr[1]) for arr in x_trajectory[:index]]
             pygame.draw.lines(screen, BLACK, False, points, 2)
             pygame.draw.circle(screen, BLACK, (int(1000*bx), int(1000*by)), 5)
 

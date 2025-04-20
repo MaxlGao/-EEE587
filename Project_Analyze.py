@@ -10,9 +10,6 @@ def load_all_results(results_dir):
     for fname in sorted(os.listdir(results_dir)):
         if fname.endswith(".npz"):
             data = np.load(os.path.join(results_dir, fname), allow_pickle=True)
-            # pos_error = data["position_error"].item()
-            # ang_error = data["angular_error"].item()
-            # force_error = np.linalg.norm(data["force_usage"])
             results.append({
                 "label": data["label"].item(),
                 "pusher_plan": data["pusher_plan"],
@@ -27,43 +24,22 @@ def load_all_results(results_dir):
             })
     return results
 
-def summarize_results(results, top_n=10):
-    results_sorted = sorted(results, key=lambda r: r["position_error"])
-    print("\n=== Top Experiments by Position Error ===")
+def summarize_results(results, top_n=50):
+    results_sorted = sorted(results, key=lambda r: r["total_cost"])
+    print("\n=== Top Experiments by Total Cost ===")
     for r in results_sorted[:top_n]:
-        print(f"{r['label']:<10} | Pos Err: {r['position_error']:.4f} | "
-              f"Ang Err: {r['angular_error']:.4f} | "
-              f"Force: {r['force_usage'][0]:.2f}, {r['force_usage'][1]:.2f}")
-
-def plot_error_distribution(results):
-    pos_errors = [r["position_error"] for r in results]
-    ang_errors = [r["angular_error"] for r in results]
-    
-    plt.figure(figsize=(12, 5))
-    plt.subplot(1, 2, 1)
-    plt.hist(pos_errors, bins=30, alpha=0.7)
-    plt.title("Position Error Distribution")
-    plt.xlabel("m-s")
-    plt.ylabel("Count")
-
-    plt.subplot(1, 2, 2)
-    plt.hist(ang_errors, bins=30, alpha=0.7, color='orange')
-    plt.title("Angular Error Distribution")
-    plt.xlabel("rad-s")
-    plt.ylabel("Count")
-    plt.tight_layout()
-    plt.show()
+        print(f"{r['label']:<10} | cost: {r['total_cost'][0]:.4f}")
 
 def plot_force_scatter(results):
     f1 = [r["force_usage"][0] for r in results]
     f2 = [r["force_usage"][1] for r in results]
-    pos_errors = [r["position_error"] for r in results]
+    total_cost = [r["total_cost"] for r in results]
 
-    plt.scatter(f1, f2, c=pos_errors, cmap='viridis', s=40)
-    plt.colorbar(label="Position Error (m-s)")
-    plt.xlabel("Force Usage: Pusher 1 (N-s)")
-    plt.ylabel("Force Usage: Pusher 2 (N-s)")
-    plt.title("Force Usage vs. Position Error")
+    plt.scatter(f1, f2, c=total_cost, cmap='viridis', s=40)
+    plt.colorbar(label="Total Cost")
+    plt.xlabel("Pusher 1 Average Force")
+    plt.ylabel("Pusher 2 Average Force")
+    plt.title("Pusher 1 Force vs. Pusher 2 Force vs. Cost")
     plt.grid(True)
     plt.show()
 
@@ -81,30 +57,6 @@ def plot_cost_trajs(results, buckets=8):
         grouped[pct_active].append(r)
 
     sorted_keys = sorted(grouped.keys())
-    # color_map = cm.get_cmap('viridis', len(sorted_keys))
-    # color_dict = {k: color_map(i) for i, k in enumerate(sorted_keys)}
-
-    # plt.figure(figsize=(8,5))
-    # for pct_active, group in grouped.items():
-    #     color = color_dict[pct_active]
-    #     for r in group:
-    #         plt.plot(range(total_steps), r["cost_traj"], color=color, alpha=0.6)
-    
-    # # Custom legend
-    # legend_handles = [
-    #     plt.Line2D([0], [0], color=color_dict[k], label=f"{k:.1f}% active")
-    #     for k in sorted_keys
-    # ]
-    # plt.legend(handles=legend_handles, title="Pusher 2 Active Time")
-
-    # plt.xlabel("Time Steps")
-    # plt.ylabel("Cost incurred per time step")
-    # plt.title("Cost Trajectories Grouped by Pusher 2 Activation %")
-    # plt.grid(True)
-    # plt.tight_layout()
-    # plt.show()
-
-
     # Subplotting method
     n_cols = int(np.ceil(np.sqrt(buckets+1)))
     n_rows = int(np.ceil((buckets+1) / n_cols))
@@ -115,8 +67,14 @@ def plot_cost_trajs(results, buckets=8):
     for i, pct_active in enumerate(sorted_keys):
         ax = axs[i]
         group = grouped[pct_active]
+        # Find best (lowest cost) run
+        best_run = min(group, key=lambda r: r["total_cost"])
         for r in group:
-            ax.plot(range(total_steps), r["cost_traj"], alpha=0.6)
+            is_best = (r == best_run)
+            alpha = 0.9 if is_best else 0.2
+            lw = 2.5 if is_best else 1.0
+
+            ax.plot(range(total_steps), r["cost_traj"], alpha=alpha, linewidth=lw)
         ax.set_title(f"{pct_active:.1f}% Active")
         ax.grid(True)
         ax.set_xticks(np.arange(0, total_steps+1, total_steps // buckets))
@@ -151,21 +109,34 @@ def plot_trajectories_subplots(results, buckets=8):
     n_cols = int(np.ceil(np.sqrt(num_plots)))
     n_rows = int(np.ceil(num_plots / n_cols))
 
-    fig, axs = plt.subplots(n_rows, n_cols, figsize=(4.5 * n_cols, 4.5 * n_rows), sharex=True, sharey=True)
+    fig, axs = plt.subplots(n_rows, n_cols, figsize=(4 * n_cols, 4 * n_rows), sharex=True, sharey=True)
     axs = axs.flatten()
 
     for i, pct_active in enumerate(sorted_keys):
         ax = axs[i]
-        for r in grouped[pct_active]:
-            traj = np.array(r["y_traj"])  # shape (T, 5): x, y, theta, phi1, phi2
-            x_ref = np.array(r["x_ref"])  # shape (T, 3): x, y, theta
+        group = grouped[pct_active]
 
-            ax.plot(x_ref[:,0], x_ref[:,1], '--', color='gray', alpha=0.7, label='Ref' if 'Ref' not in ax.get_legend_handles_labels()[1] else "")
-            ax.plot(traj[:,0], traj[:,1], alpha=0.8)
+        # Find best (lowest cost) run
+        best_run = min(group, key=lambda r: r["total_cost"])
+        for r in group:
+            traj = np.array(r["y_traj"])
+            x_ref = np.array(r["x_ref"])
+            x_ref = x_ref.T
+            is_best = (r == best_run)
+
+            alpha = 0.9 if is_best else 0.2
+            lw = 2.5 if is_best else 1.0
+            label = "Ref Traj" if is_best and 'Ref Traj' not in ax.get_legend_handles_labels()[1] else None
+
+            # Reference trajectory (dashed, light)
+            if is_best:
+                ax.plot(x_ref[:,0], x_ref[:,1], '--', color='gray', alpha=0.7, label=label)
+
+            # Actual trajectory
+            ax.plot(traj[:,0], traj[:,1], alpha=alpha, linewidth=lw)
 
         ax.set_title(f"{pct_active:.1f}% Active")
         ax.set_aspect('equal')
-        ax.grid(True)
         if i % n_cols == 0:
             ax.set_ylabel("Y Position")
         if i // n_cols == n_rows - 1:
@@ -178,7 +149,6 @@ def plot_trajectories_subplots(results, buckets=8):
     fig.suptitle("Object Trajectories by Pusher 2 Activation %", fontsize=16)
     plt.tight_layout(rect=[0, 0, 1, 0.96])
     plt.show()
-
 
 def plot_error_vs_active_time(results, buckets=8):
     # Count active time per plan (as % of total buckets)
@@ -253,19 +223,17 @@ def plot_best_worst_schedules(results, best=True, buckets=8):
 
     ax.set_xlim(0, len(plan))
     ax.set_ylim(0, len(plans))
-    # ax.set_xticks([i + 0.5 for i in range(bucket_count)])
-    # ax.set_xticklabels([i + 1 for i in range(bucket_count)])
     ax.set_yticks([i + 0.5 for i in range(len(plans))])
     if best:
         ax.set_yticklabels([f"{int(p)}%" for p in sorted_best_pcts])
     else:
         ax.set_yticklabels([f"{int(p)}%" for p in sorted_worst_pcts])
-    ax.set_xlabel("Schedule Bucket")
-    ax.set_ylabel("Pusher 2 Active Time")
+    ax.set_xlabel("Time Step")
+    ax.set_ylabel("Percent active in Plan")
     if best:
-        ax.set_title("Best Plan per Activity Level")
+        ax.set_title("Best Plan per Percent Active (Black = Pusher 2 active)")
     else:
-        ax.set_title("Worst Plan per Activity Level")
+        ax.set_title("Worst Plan per Percent Active (Black = Pusher 2 active)")
     ax.invert_yaxis()
     plt.tight_layout()
     plt.show()
@@ -273,50 +241,17 @@ def plot_best_worst_schedules(results, best=True, buckets=8):
 def load_and_play(label, speed, results_dir):
     from Project_Visualize import playback
     data = np.load(f"{results_dir}/{label.replace(' ', '_')}.npz", allow_pickle=True)
-    playback(data['x_traj'], data['u_traj'], data['x_ref'], B_WIDTH, B_HEIGHT, dt, speed)
+    playback(data['y_traj'], data['u_traj'], data['x_ref'], B_WIDTH, B_HEIGHT, dt, speed)
 
 if __name__ == "__main__":
-    results_dir = "results/batch_bucket_schedules_1"
+    results_dir = "results/experiment_2"
     results = load_all_results(results_dir)
     # summarize_results(results)
-    # plot_error_distribution(results)
     # plot_force_scatter(results)
     # plot_cost_trajs(results)
-    plot_trajectories_subplots(results)
+    # plot_trajectories_subplots(results)
     # plot_error_vs_active_time(results)
     # plot_best_worst_schedules(results, best=True)
     # plot_best_worst_schedules(results, best=False)
 
-
-    # load_and_play("plan_0000", 2, results_dir)
-    # Best plan for percent 0.0 is plan_0000
-    # Worst plan for percent 0.0 is plan_0000
-
-    # load_and_play("plan_0016", 2, results_dir)
-    # Best plan for percent 12.5 is plan_0016
-    # Worst plan for percent 12.5 is plan_0001
-
-    # load_and_play("plan_0036", 2, results_dir)
-    # load_and_play("plan_0003", 2, results_dir)
-    # Best plan for percent 25.0 is plan_0036
-    # Worst plan for percent 25.0 is plan_0003
-
-    # Best plan for percent 37.5 is plan_0084
-    # Worst plan for percent 37.5 is plan_0131
-
-    # load_and_play("plan_0085", 2, results_dir)
-    # Best plan for percent 50.0 is plan_0085
-    # Worst plan for percent 50.0 is plan_0195
-
-    # load_and_play("plan_0241", 2, results_dir)
-    # Best plan for percent 62.5 is plan_0087
-    # Worst plan for percent 62.5 is plan_0241
-
-    # Best plan for percent 75.0 is plan_0095
-    # Worst plan for percent 75.0 is plan_0249
-
-    # Best plan for percent 87.5 is plan_0127
-    # Worst plan for percent 87.5 is plan_0254
-
-    # Best plan for percent 100.0 is plan_0255
-    # Worst plan for percent 100.0 is plan_0255
+    load_and_play("plan_0000", 3, results_dir)
