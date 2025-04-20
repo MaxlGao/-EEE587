@@ -53,13 +53,13 @@ def transform2(x,y,angle):
     new_y = x * sin_angle + y * cos_angle
     return new_x, new_y
 
-def playback(x_trajectory, u_trajectory, x_ref_values, B_WIDTH, B_HEIGHT, dt, speed):
+def playback(x_trajectory, u_trajectory, x_ref_values, B_WIDTH, B_HEIGHT, dt, speed, pusher_plan):
     # Pygame animation
     # Initialize pygame
     pygame.init()
 
     # Screen dimensions
-    WIDTH, HEIGHT = 800, 600
+    WIDTH, HEIGHT = 600, 600
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption("Rectangle Animation")
 
@@ -74,6 +74,13 @@ def playback(x_trajectory, u_trajectory, x_ref_values, B_WIDTH, B_HEIGHT, dt, sp
     clock = pygame.time.Clock()
 
     trajectory_len = len(u_trajectory)
+    # Bar layout settings
+    bar_height = 20
+    bar_width = 300
+    bar_x = 150
+    bar_y = screen.get_height() - 40
+    cell_width = bar_width / len(pusher_plan)
+
 
     running = True
     index = 0
@@ -87,7 +94,17 @@ def playback(x_trajectory, u_trajectory, x_ref_values, B_WIDTH, B_HEIGHT, dt, sp
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-        
+
+        # Draw activity bar
+        for i, step in enumerate(pusher_plan):
+            color = (0, 0, 0) if step["active2"] else (255, 255, 255)
+            pygame.draw.rect(screen, color, (bar_x + i * cell_width, bar_y, cell_width, bar_height))
+        # Draw moving tracker
+        tracker_color = (255, 0, 0)  # red
+        tracker_x = bar_x + index * cell_width
+        pygame.draw.rect(screen, tracker_color, (tracker_x, bar_y - 2, 2, bar_height + 4))
+        pygame.draw.rect(screen, (0, 0, 0), (bar_x, bar_y, bar_width, bar_height), width=1)
+
         # Get current position and angle from the trajectory
         bx = x_trajectory[index][0]
         by = x_trajectory[index][1]

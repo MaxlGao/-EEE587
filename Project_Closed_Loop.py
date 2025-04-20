@@ -94,14 +94,14 @@ def single_run(args, results_dir="results/experiment_0"):
     print(f"Done with {label}; took {time.time() - start_time:.2f} seconds")
     np.savez(f"{results_dir}/{label}.npz", **result)
 
-def run_all_experiments_buckets(start_idx=0, parallel=False):
+def run_all_experiments_buckets(start_idx=0, parallel=False, max_workers=12):
     all_plans = generate_all_buckets(n_buckets)
     jobs = []
     for i, bucket_plan in enumerate(all_plans[start_idx:], start=start_idx):
         plan = make_plan_from_buckets(bucket_plan, bucket_size, T)
         jobs.append((i, plan))
     if parallel:
-        with ProcessPoolExecutor(max_workers=12) as executor:
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
             executor.map(single_run, jobs)
     else:
         for args in jobs:

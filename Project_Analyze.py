@@ -1,8 +1,6 @@
 import numpy as np
 import os
 import matplotlib.pyplot as plt
-import matplotlib.cm as cm
-import matplotlib.colors as mcolors
 from Project_MPC import B_WIDTH, B_HEIGHT, dt
 
 def load_all_results(results_dir):
@@ -241,7 +239,7 @@ def plot_best_worst_schedules(results, best=True, buckets=8):
 def load_and_play(label, speed, results_dir):
     from Project_Visualize import playback
     data = np.load(f"{results_dir}/{label.replace(' ', '_')}.npz", allow_pickle=True)
-    playback(data['y_traj'], data['u_traj'], data['x_ref'], B_WIDTH, B_HEIGHT, dt, speed)
+    playback(data['y_traj'], data['u_traj'], data['x_ref'], B_WIDTH, B_HEIGHT, dt, speed, data['pusher_plan'])
 
 if __name__ == "__main__":
     results_dir = "results/experiment_2"
@@ -254,4 +252,11 @@ if __name__ == "__main__":
     # plot_best_worst_schedules(results, best=True)
     # plot_best_worst_schedules(results, best=False)
 
-    load_and_play("plan_0000", 3, results_dir)
+    # Experiment Set 1: P=0, Best P=25, Worst P=50 and Best P=50
+    # load_and_play("plan_0000", 2, results_dir)
+    # load_and_play("plan_0036", 2, results_dir)
+    # load_and_play("plan_0195", 2, results_dir)
+    # load_and_play("plan_0085", 2, results_dir)
+
+    # Experiment Set 2: Best P=37.5
+    # load_and_play("plan_0074", 2, results_dir)
