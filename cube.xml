@@ -1,0 +1,35 @@
+<mujoco model="cube_push_textured">
+  <option timestep="0.002" integrator="RK4"/>
+
+  <asset>
+    <texture name="grid" type="2d" builtin="checker" rgb1=".1 .2 .3" rgb2=".2 .3 .4" width="300" height="300" mark="edge" markrgb=".8 .8 .8"/>
+    <material name="gridmat" texture="grid" texrepeat="1 1" texuniform="true" reflectance=".2"/>
+  </asset>
+
+  <worldbody>
+    <light diffuse=".5 .5 .5" pos="0 0 3" dir="0 0 -1"/>
+    <geom name="floor" type="plane" size="2 2 0.1" material="gridmat" friction="1.0 0.005 0.0001"/>
+
+    <body name="cube" pos="0 0 0.05">
+      <joint name="cube_joint" type="free" limited="false"/>
+      <geom name="cube_geom" type="box" size="0.05 0.05 0.05" mass="0.1" rgba="0 0 1 1" friction="0.3 0.005 0.0001"/>
+
+      <site name="site_back_center" pos=" 0.00 -0.05 0.00" size="0.01" rgba="1 0 0 0.7"/>
+      <site name="site_back_left"   pos=" 0.04 -0.05 0.00" size="0.01" rgba="1 0.5 0 0.7"/>
+      <site name="site_back_right"  pos="-0.04 -0.05 0.00" size="0.01" rgba="1 0.5 0 0.7"/>
+      <site name="site_left_center" pos="-0.05  0.00 0.00" size="0.01" rgba="0 0.5 1 0.7"/>
+       <site name="site_left_up"     pos="-0.05  0.04 0.00" size="0.01" rgba="0 1.0 1 0.7"/>
+      <site name="site_left_down"   pos="-0.05 -0.04 0.00" size="0.01" rgba="0 1.0 1 0.7"/>
+
+      </body>
+
+    <body name="pusher_mocap" mocap="true" pos="-0.2 0.0 0.05">
+       <geom name="pusher_geom" type="sphere" size="0.015" rgba="0 1 0 0.7" contype="1" conaffinity="1"/>
+    </body>
+
+  </worldbody>
+
+  <contact>
+    </contact>
+
+</mujoco>
